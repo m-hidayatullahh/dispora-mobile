@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Dispora DKI Jakarta",
+    "slug": "dispora-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "disporamobile",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0B0C10",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0B0C10"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "id.go.jakarta.dispora.demo"
+    },
+    "android": {
+      "package": "id.go.jakarta.dispora.demo",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0C10"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "newArchEnabled": false
+  }
+}

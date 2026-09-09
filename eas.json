@@ -9,6 +9,9 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
       }
     },
     "preview": {
@@ -18,11 +21,24 @@
         "image": "ubuntu-22.04-jdk-17-ndk-r21e"
       }
     },
+    "ios-simulator": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "ios-device": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      }
+    },
     "production": {
       "android": {
         "buildType": "app-bundle",
         "image": "ubuntu-22.04-jdk-17-ndk-r21e"
-      }
+      },
+      "ios": {}
     }
   },
   "submit": {

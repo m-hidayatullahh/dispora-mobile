@@ -18,7 +18,10 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "id.go.jakarta.dispora.demo"
+      "bundleIdentifier": "id.go.jakarta.dispora.demo",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "id.go.jakarta.dispora.demo",

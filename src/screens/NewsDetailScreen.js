@@ -1,61 +1,82 @@
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Image, Pressable, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, radius, spacing, type } from '../theme';
-import { Tag } from '../components/common';
+import { useTheme, useThemedStyles, spacing, radius } from '../theme';
+import { useI18n } from '../i18n/i18n';
+import { Tag, PrimaryButton } from '../components/common';
 
 export default function NewsDetailScreen({ route }) {
+  const { colors } = useTheme();
+  const { t } = useI18n();
+  const s = useThemedStyles(makeStyles);
   const { article } = route.params;
-  const paragraphs = article.body.split('\n\n');
+
+  const paragraphs = String(article.body || article.excerpt || '')
+    .split('\n')
+    .map((p) => p.trim())
+    .filter(Boolean);
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.metaTop}>
+    <ScrollView style={s.screen} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      {article.image ? (
+        <Image source={{ uri: article.image }} style={s.cover} resizeMode="cover" />
+      ) : null}
+
+      <View style={s.metaTop}>
         <Tag label={article.category} tone="primary" />
-        <Text style={styles.date}>{article.date}</Text>
+        <Text style={s.date}>{article.date}</Text>
       </View>
 
-      <Text style={styles.title}>{article.title}</Text>
+      <Text style={s.title}>{article.title}</Text>
 
-      <View style={styles.lead}>
-        <View style={styles.leadBar} />
-        <Text style={styles.leadText}>{article.excerpt}</Text>
-      </View>
+      {article.excerpt ? (
+        <View style={s.lead}>
+          <View style={s.leadBar} />
+          <Text style={s.leadText}>{article.excerpt}</Text>
+        </View>
+      ) : null}
 
       {paragraphs.map((p, i) => (
-        <Text key={i} style={styles.paragraph}>
+        <Text key={i} style={s.paragraph}>
           {p}
         </Text>
       ))}
 
-      <View style={styles.share}>
+      {article.registrationUrl ? (
+        <PrimaryButton
+          label={t('home.ctaRegister')}
+          icon="open-outline"
+          onPress={() => Linking.openURL(article.registrationUrl).catch(() => {})}
+          style={{ marginTop: spacing.lg }}
+        />
+      ) : null}
+
+      <Pressable style={s.share}>
         <Ionicons name="share-social-outline" size={16} color={colors.gold} />
-        <Text style={styles.shareText}>Bagikan berita ini</Text>
-      </View>
+        <Text style={s.shareText}>{t('news.share')}</Text>
+      </Pressable>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.base },
+const makeStyles = (c, t) => ({
+  screen: { flex: 1, backgroundColor: c.base },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl * 2 },
-  metaTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  date: { ...type.small },
-  title: { ...type.display, fontSize: 25, lineHeight: 32, marginTop: spacing.md },
-  lead: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.lg,
+  cover: {
+    width: '100%',
+    height: 200,
+    borderRadius: radius.md,
     marginBottom: spacing.lg,
+    backgroundColor: c.surfaceAlt,
   },
-  leadBar: { width: 3, borderRadius: 2, backgroundColor: colors.primary },
-  leadText: { ...type.body, flex: 1, color: '#D5D9E4', fontSize: 15, lineHeight: 23 },
-  paragraph: { ...type.body, fontSize: 14, lineHeight: 23, marginBottom: spacing.md },
+  metaTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  date: { ...t.small },
+  title: { ...t.display, fontSize: 25, lineHeight: 32, marginTop: spacing.md },
+  lead: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg, marginBottom: spacing.lg },
+  leadBar: { width: 3, borderRadius: 2, backgroundColor: c.primary },
+  leadText: { ...t.body, flex: 1, fontSize: 15, lineHeight: 23 },
+  paragraph: { ...t.body, fontSize: 14, lineHeight: 23, marginBottom: spacing.md },
   share: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -66,7 +87,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
   },
-  shareText: { color: colors.text, fontSize: 13, fontWeight: '700' },
+  shareText: { color: c.text, fontSize: 13, fontWeight: '700' },
 });

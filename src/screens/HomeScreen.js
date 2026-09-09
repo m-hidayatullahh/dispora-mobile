@@ -1,19 +1,21 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  StyleSheet,
   Pressable,
   FlatList,
   Dimensions,
   Image,
+  Linking,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, radius, spacing, type } from '../theme';
+import { useTheme, useThemedStyles, spacing, radius } from '../theme';
+import { useI18n } from '../i18n/i18n';
+import { fetchHero, cleanText } from '../api/dispora';
 import {
   heroQuotes,
   programs,
@@ -24,14 +26,69 @@ import {
   helpdesk,
   marqueeWords,
 } from '../data/content';
-import { SectionHeading, PrimaryButton, StatBox, Tag } from '../components/common';
-import { ProgramCard, EventCard, NewsCard, AthleteCard } from '../components/cards';
+import { SectionHeading, PrimaryButton, StatBox, Tag, Skeleton, Notice } from '../components/common';
+import { HeroCard, ProgramCard, EventCard, NewsCard, AthleteCard } from '../components/cards';
+import { LogoMark } from '../components/Logo';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const { t, lang, setLang } = useI18n();
+  const s = useThemedStyles(makeStyles);
+
+  const [hero, setHero] = useState([]);
+  const [heroLoading, setHeroLoading] = useState(true);
+  const [heroError, setHeroError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [quoteIndex, setQuoteIndex] = useState(0);
+
+  const loadHero = useCallback(async () => {
+    setHeroError(false);
+    try {
+      const data = await fetchHero();
+      setHero(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setHeroError(true);
+      setHero([]);
+    } finally {
+      setHeroLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadHero();
+  }, [loadHero]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadHero();
+  };
+
+  const openHero = (item) => {
+    if (item.registrationUrl) {
+      Linking.openURL(item.registrationUrl).catch(() => {});
+      return;
+    }
+    if (item.heroCtaUrl) {
+      Linking.openURL(item.heroCtaUrl).catch(() => {});
+      return;
+    }
+    navigation.navigate('NewsDetail', {
+      article: {
+        id: item.id,
+        category: item.type || 'INFO',
+        title: item.title,
+        date: item.date,
+        excerpt: cleanText(item.excerpt),
+        body: cleanText(item.content || item.excerpt),
+        image: item.bannerImage || item.image,
+        registrationUrl: item.registrationUrl,
+      },
+    });
+  };
 
   const onQuoteScroll = (e) => {
     const i = Math.round(e.nativeEvent.contentOffset.x / (width - spacing.lg * 2 + spacing.md));
@@ -40,61 +97,80 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <ScrollView
-      style={styles.screen}
+      style={s.screen}
       contentContainerStyle={{ paddingBottom: spacing.xxl * 2 }}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+      }
     >
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <View style={styles.brandRow}>
-          <View style={styles.logoMark}>
-            <Text style={styles.logoMarkText}>D</Text>
-          </View>
+      <View style={[s.header, { paddingTop: insets.top + spacing.sm }]}>
+        <View style={s.brandRow}>
+          <LogoMark size={40} />
           <View>
-            <Text style={styles.brandName}>DISPORA</Text>
-            <Text style={styles.brandSub}>DKI Jakarta</Text>
+            <Text style={s.brandName}>
+              Dispora <Text style={s.brandNameAccent}>Jakarta</Text>
+            </Text>
+            <Text style={s.brandSub}>DKI Jakarta</Text>
           </View>
         </View>
-        <View style={styles.headerActions}>
-          <Pressable style={styles.iconButton} hitSlop={6}>
-            <Text style={styles.langText}>ID</Text>
+        <View style={s.headerActions}>
+          <Pressable
+            style={s.iconButton}
+            hitSlop={6}
+            onPress={() => setLang(lang === 'id' ? 'en' : 'id')}
+          >
+            <Text style={s.langText}>{lang.toUpperCase()}</Text>
           </Pressable>
-          <Pressable style={styles.iconButton} hitSlop={6}>
-            <Ionicons name="notifications-outline" size={19} color={colors.text} />
+          <Pressable style={s.iconButton} hitSlop={6} onPress={() => navigation.navigate('Chat')}>
+            <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.text} />
           </Pressable>
         </View>
       </View>
 
-      {/* Hero */}
-      <View style={styles.hero}>
-        <LinearGradient
-          colors={['rgba(213,28,41,0.20)', 'rgba(11,12,16,0)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <Text style={styles.heroEyebrow}>PEMBERDAYAAN PEMUDA &amp; OLAHRAGA</Text>
-        <Text style={styles.heroTitle}>
-          Membangun masa depan Jakarta melalui{' '}
-          <Text style={styles.heroTitleAccent}>pemuda &amp; olahraga</Text>
-        </Text>
-        <Text style={styles.heroBody}>
-          Memberdayakan generasi atlet dan pemimpin masa depan melalui fasilitas kelas dunia dan
-          program olahraga terintegrasi.
-        </Text>
-        <View style={styles.heroButtons}>
-          <PrimaryButton
-            label="Lihat event"
-            icon="arrow-forward"
-            onPress={() => navigation.navigate('Acara')}
+      {/* Hero dari API */}
+      <View style={s.heroSection}>
+        <Text style={s.heroEyebrow}>{t('home.eyebrow')}</Text>
+
+        {heroLoading ? (
+          <View style={s.heroSkeleton}>
+            <Skeleton height={330} style={{ borderRadius: radius.lg }} />
+          </View>
+        ) : hero.length > 0 ? (
+          <FlatList
+            horizontal
+            pagingEnabled
+            data={hero}
+            keyExtractor={(item) => String(item.id)}
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <View style={{ width }}>
+                <HeroCard
+                  item={item}
+                  ctaLabel={t('home.ctaRegister')}
+                  onPress={() => openHero(item)}
+                />
+              </View>
+            )}
           />
-          <PrimaryButton
-            label="Tonton aktivitas"
-            variant="ghost"
-            icon="play-circle-outline"
-            onPress={() => {}}
-          />
-        </View>
+        ) : (
+          <View style={s.heroFallback}>
+            {heroError ? <Notice text={t('common.offline')} tone="gold" /> : null}
+            <Text style={s.heroFallbackTitle}>{t('home.heroFallbackTitle')}</Text>
+            <Text style={s.heroFallbackBody}>{t('home.heroFallbackBody')}</Text>
+            <View style={s.heroButtons}>
+              <PrimaryButton
+                label={t('home.ctaEvents')}
+                icon="arrow-forward"
+                onPress={() => navigation.navigate('Acara')}
+              />
+              {heroError ? (
+                <PrimaryButton label={t('common.retry')} variant="ghost" onPress={loadHero} />
+              ) : null}
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Kutipan pimpinan */}
@@ -103,30 +179,31 @@ export default function HomeScreen({ navigation }) {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={onQuoteScroll}
-        contentContainerStyle={styles.quoteScroll}
+        contentContainerStyle={s.quoteScroll}
+        style={{ marginTop: spacing.xl }}
       >
         {heroQuotes.map((q) => (
-          <View key={q.id} style={[styles.quoteCard, { width: width - spacing.lg * 2 }]}>
+          <View key={q.id} style={[s.quoteCard, { width: width - spacing.lg * 2 }]}>
             <Ionicons name="chatbox-ellipses" size={18} color={colors.gold} />
-            <Text style={styles.quoteText}>{q.quote}</Text>
-            <Text style={styles.quoteName}>{q.name}</Text>
-            <Text style={styles.quoteRole}>{q.role}</Text>
+            <Text style={s.quoteText}>{q.quote}</Text>
+            <Text style={s.quoteName}>{q.name}</Text>
+            <Text style={s.quoteRole}>{q.role}</Text>
           </View>
         ))}
       </ScrollView>
-      <View style={styles.dots}>
+      <View style={s.dots}>
         {heroQuotes.map((q, i) => (
-          <View key={q.id} style={[styles.dot, i === quoteIndex && styles.dotActive]} />
+          <View key={q.id} style={[s.dot, i === quoteIndex && s.dotActive]} />
         ))}
       </View>
 
       {/* Program unggulan */}
-      <View style={styles.section}>
+      <View style={s.section}>
         <SectionHeading
-          title="PROGRAM "
-          accentWord="UNGGULAN"
-          caption="Program pembinaan dan layanan kepemudaan serta olahraga di DKI Jakarta yang dapat diakses masyarakat."
-          actionLabel="Semua program"
+          title={t('home.programs')}
+          accentWord={t('home.programsAccent')}
+          caption={t('home.programsCaption')}
+          actionLabel={t('home.allPrograms')}
           onAction={() => {}}
         />
         <FlatList
@@ -134,43 +211,45 @@ export default function HomeScreen({ navigation }) {
           data={programs}
           keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.hList}
+          contentContainerStyle={s.hList}
           ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
           renderItem={({ item }) => <ProgramCard item={item} onPress={() => {}} />}
         />
       </View>
 
       {/* Helpdesk */}
-      <View style={[styles.section, styles.helpdesk]}>
-        <Tag label="Layanan tambahan" tone="blue" />
-        <Text style={styles.helpdeskTitle}>Helpdesk Dispora</Text>
-        <Text style={styles.helpdeskBody}>
-          Lihat alur tiket layanan, SLA penanganan, dan pusat bantuan digital Dispora DKI Jakarta.
-        </Text>
-        <View style={styles.helpdeskStats}>
-          <View style={styles.helpdeskStat}>
-            <Text style={styles.helpdeskValue}>{helpdesk.openTicket}</Text>
-            <Text style={styles.helpdeskLabel}>Tiket terbuka</Text>
+      <View style={[s.section, s.helpdesk]}>
+        <Tag label="Helpdesk" tone="blue" />
+        <Text style={s.helpdeskTitle}>{t('home.helpdesk')}</Text>
+        <Text style={s.helpdeskBody}>{t('home.helpdeskBody')}</Text>
+        <View style={s.helpdeskStats}>
+          <View style={s.helpdeskStat}>
+            <Text style={s.helpdeskValue}>{helpdesk.openTicket}</Text>
+            <Text style={s.helpdeskLabel}>Tiket terbuka</Text>
           </View>
-          <View style={styles.helpdeskDivider} />
-          <View style={styles.helpdeskStat}>
-            <Text style={styles.helpdeskValue}>{helpdesk.avgSla}</Text>
-            <Text style={styles.helpdeskLabel}>Rata-rata SLA</Text>
+          <View style={s.helpdeskDivider} />
+          <View style={s.helpdeskStat}>
+            <Text style={s.helpdeskValue}>{helpdesk.avgSla}</Text>
+            <Text style={s.helpdeskLabel}>Rata-rata SLA</Text>
           </View>
-          <View style={styles.helpdeskDivider} />
-          <View style={styles.helpdeskStat}>
-            <Text style={styles.helpdeskValue}>{helpdesk.channels.length}</Text>
-            <Text style={styles.helpdeskLabel}>Channel aktif</Text>
+          <View style={s.helpdeskDivider} />
+          <View style={s.helpdeskStat}>
+            <Text style={s.helpdeskValue}>{helpdesk.channels.length}</Text>
+            <Text style={s.helpdeskLabel}>Channel aktif</Text>
           </View>
         </View>
-        <PrimaryButton label="Buka helpdesk" icon="arrow-forward" onPress={() => {}} />
+        <PrimaryButton
+          label={t('home.openHelpdesk')}
+          icon="arrow-forward"
+          onPress={() => navigation.navigate('Helpdesk')}
+        />
       </View>
 
       {/* Kegiatan */}
-      <View style={styles.section}>
+      <View style={s.section}>
         <SectionHeading
-          title="KEGIATAN"
-          actionLabel="Lihat jadwal"
+          title={t('home.activities')}
+          actionLabel={t('home.schedule')}
           onAction={() => navigation.navigate('Acara')}
         />
         <FlatList
@@ -178,7 +257,7 @@ export default function HomeScreen({ navigation }) {
           data={events}
           keyExtractor={(item) => String(item.id)}
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.hList}
+          contentContainerStyle={s.hList}
           ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
           renderItem={({ item }) => (
             <EventCard
@@ -189,46 +268,47 @@ export default function HomeScreen({ navigation }) {
         />
       </View>
 
-      {/* Marquee statis */}
-      <View style={styles.marquee}>
+      {/* Marquee */}
+      <View style={s.marquee}>
         {marqueeWords.map((w, i) => (
-          <View key={w} style={styles.marqueeItem}>
-            <Text style={styles.marqueeText}>{w}</Text>
-            {i < marqueeWords.length - 1 ? <View style={styles.marqueeDot} /> : null}
+          <View key={w} style={s.marqueeItem}>
+            <Text style={s.marqueeText}>{w}</Text>
+            {i < marqueeWords.length - 1 ? <View style={s.marqueeDot} /> : null}
           </View>
         ))}
       </View>
 
       {/* Profil inspirasi */}
-      <View style={styles.section}>
+      <View style={s.section}>
         <SectionHeading
-          title="PROFIL "
-          accentWord="INSPIRASI"
-          caption="Wajah-wajah bertalenta dan semangat keunggulan dari Jakarta."
+          title={t('home.athletes')}
+          accentWord={t('home.athletesAccent')}
+          caption={t('home.athletesCaption')}
         />
         <FlatList
           horizontal
           data={athletes}
           keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.hList}
+          contentContainerStyle={s.hList}
           ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
           renderItem={({ item }) => <AthleteCard item={item} />}
         />
       </View>
 
-      {/* Dispora terkini */}
-      <View style={styles.section}>
+      {/* Berita */}
+      <View style={s.section}>
         <SectionHeading
-          title="DISPORA TERKINI"
-          actionLabel="Semua berita"
+          title={t('home.latest')}
+          actionLabel={t('home.allNews')}
           onAction={() => navigation.navigate('Berita')}
         />
-        <View style={styles.newsList}>
+        <View style={s.newsList}>
           {news.slice(0, 3).map((item) => (
             <NewsCard
               key={item.id}
               item={item}
+              readLabel={t('common.readMore')}
               onPress={() => navigation.navigate('NewsDetail', { article: item })}
             />
           ))}
@@ -236,22 +316,19 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       {/* Media sosial */}
-      <View style={styles.section}>
-        <SectionHeading
-          title="MEDIA SOSIAL"
-          caption="Cerita atlet, kegiatan komunitas, dan program yang sedang berlangsung."
-        />
-        <View style={styles.socialCard}>
+      <View style={s.section}>
+        <SectionHeading title="MEDIA SOSIAL" />
+        <View style={s.socialCard}>
           <Image
             source={{
               uri: 'https://fs.dispora.id/image-uploader/assets/img/product_product/ImageIg350.png',
             }}
-            style={styles.socialImage}
+            style={s.socialImage}
             resizeMode="cover"
           />
-          <View style={styles.socialBody}>
-            <Text style={styles.socialHandle}>@disporadkijkt</Text>
-            <Text style={styles.socialText} numberOfLines={3}>
+          <View style={s.socialBody}>
+            <Text style={s.socialHandle}>@disporadkijkt</Text>
+            <Text style={s.socialText} numberOfLines={3}>
               Selamat kepada seluruh finalis dan para juara Duta Pora 2026. Malam final boleh
               selesai, tapi perjalanan kalian baru dimulai.
             </Text>
@@ -259,26 +336,24 @@ export default function HomeScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Trafik realtime */}
-      <View style={styles.section}>
-        <SectionHeading title="TRAFIK REALTIME" caption="Dispora active stats" />
-        <View style={styles.statsGrid}>
-          {stats.map((s) => (
-            <StatBox key={s.id} label={s.label} value={s.value} unit={s.unit} />
+      {/* Trafik */}
+      <View style={s.section}>
+        <SectionHeading title={t('home.stats')} caption={t('home.statsCaption')} />
+        <View style={s.statsGrid}>
+          {stats.map((st) => (
+            <StatBox key={st.id} label={st.label} value={st.value} unit={st.unit} />
           ))}
         </View>
       </View>
 
-      <Text style={styles.copyright}>© 2026 Dinas Pemuda dan Olahraga DKI Jakarta</Text>
+      <Text style={s.copyright}>© 2026 Dinas Pemuda dan Olahraga DKI Jakarta</Text>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.base,
-  },
+const makeStyles = (c, t) => ({
+  screen: { flex: 1, backgroundColor: c.base },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -286,175 +361,72 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
   },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  logoMark: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.sm,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoMarkText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  brandName: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '900',
-    letterSpacing: 1.6,
-  },
-  brandSub: {
-    ...type.small,
-    fontSize: 11,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  brandName: { color: c.text, fontSize: 17, fontWeight: '900', letterSpacing: -0.3 },
+  brandNameAccent: { color: c.primary },
+  brandSub: { ...t.small, fontSize: 11 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   iconButton: {
     width: 36,
     height: 36,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  langText: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '800',
-  },
+  langText: { color: c.text, fontSize: 12, fontWeight: '800' },
 
-  hero: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
-    overflow: 'hidden',
-  },
-  heroEyebrow: {
-    ...type.eyebrow,
-    marginBottom: spacing.md,
-  },
-  heroTitle: {
-    ...type.display,
-    fontSize: 30,
-    lineHeight: 36,
-  },
-  heroTitleAccent: {
-    color: colors.primary,
-  },
-  heroBody: {
-    ...type.body,
-    marginTop: spacing.md,
-  },
-  heroButtons: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-    flexWrap: 'wrap',
-  },
+  heroSection: { paddingTop: spacing.sm },
+  heroEyebrow: { ...t.eyebrow, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
+  heroSkeleton: { paddingHorizontal: spacing.lg },
+  heroFallback: { paddingHorizontal: spacing.lg, gap: spacing.md },
+  heroFallbackTitle: { ...t.display, fontSize: 28, lineHeight: 34 },
+  heroFallbackBody: { ...t.body },
+  heroButtons: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
 
-  quoteScroll: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
-  },
+  quoteScroll: { paddingHorizontal: spacing.lg, gap: spacing.md },
   quoteCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
     padding: spacing.lg,
     gap: spacing.sm,
   },
-  quoteText: {
-    ...type.body,
-    color: '#D5D9E4',
-    fontStyle: 'italic',
-  },
-  quoteName: {
-    ...type.subtitle,
-    fontSize: 15,
-    marginTop: spacing.xs,
-  },
-  quoteRole: {
-    ...type.small,
-  },
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: spacing.md,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.line,
-  },
-  dotActive: {
-    width: 18,
-    backgroundColor: colors.primary,
-  },
+  quoteText: { ...t.body, fontStyle: 'italic' },
+  quoteName: { ...t.subtitle, fontSize: 15, marginTop: spacing.xs },
+  quoteRole: { ...t.small },
 
-  section: {
-    marginTop: spacing.xxl,
-  },
-  hList: {
-    paddingHorizontal: spacing.lg,
-  },
+  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: spacing.md },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.line },
+  dotActive: { width: 18, backgroundColor: c.primary },
+
+  section: { marginTop: spacing.xxl },
+  hList: { paddingHorizontal: spacing.lg },
 
   helpdesk: {
     marginHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
     padding: spacing.lg,
     gap: spacing.md,
   },
-  helpdeskTitle: {
-    ...type.title,
-    fontSize: 20,
-  },
-  helpdeskBody: {
-    ...type.body,
-    fontSize: 13,
-  },
+  helpdeskTitle: { ...t.title, fontSize: 20 },
+  helpdeskBody: { ...t.body, fontSize: 13 },
   helpdeskStats: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.base,
+    backgroundColor: c.base,
     borderRadius: radius.md,
     paddingVertical: spacing.md,
   },
-  helpdeskStat: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
-  },
-  helpdeskDivider: {
-    width: 1,
-    height: 26,
-    backgroundColor: colors.line,
-  },
-  helpdeskValue: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '900',
-  },
-  helpdeskLabel: {
-    ...type.small,
-    fontSize: 10,
-  },
+  helpdeskStat: { flex: 1, alignItems: 'center', gap: 2 },
+  helpdeskDivider: { width: 1, height: 26, backgroundColor: c.line },
+  helpdeskValue: { color: c.text, fontSize: 17, fontWeight: '900' },
+  helpdeskLabel: { ...t.small, fontSize: 10 },
 
   marquee: {
     flexDirection: 'row',
@@ -467,57 +439,26 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
   },
-  marqueeItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  marqueeText: {
-    color: colors.textFaint,
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 1.6,
-  },
-  marqueeDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
-  },
+  marqueeItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  marqueeText: { color: c.textFaint, fontSize: 13, fontWeight: '900', letterSpacing: 1.6 },
+  marqueeDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: c.primary },
 
-  newsList: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
-  },
+  newsList: { paddingHorizontal: spacing.lg, gap: spacing.md },
 
   socialCard: {
     marginHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
     overflow: 'hidden',
   },
-  socialImage: {
-    width: '100%',
-    height: 190,
-    backgroundColor: colors.surfaceAlt,
-  },
-  socialBody: {
-    padding: spacing.lg,
-    gap: 6,
-  },
-  socialHandle: {
-    color: colors.primary,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  socialText: {
-    ...type.body,
-    fontSize: 13,
-  },
+  socialImage: { width: '100%', height: 190, backgroundColor: c.surfaceAlt },
+  socialBody: { padding: spacing.lg, gap: 6 },
+  socialHandle: { color: c.primary, fontSize: 13, fontWeight: '800' },
+  socialText: { ...t.body, fontSize: 13 },
 
   statsGrid: {
     flexDirection: 'row',
@@ -526,9 +467,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
 
-  copyright: {
-    ...type.small,
-    textAlign: 'center',
-    marginTop: spacing.xxl,
-  },
+  copyright: { ...t.small, textAlign: 'center', marginTop: spacing.xxl },
 });

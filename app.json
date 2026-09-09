@@ -1,30 +1,46 @@
 {
   "expo": {
-    "name": "Dispora DKI Jakarta",
+    "name": "Dispora Jakarta",
     "slug": "dispora-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "disporamobile",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "backgroundColor": "#0B0C10",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#0B0C10"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "id.go.jakarta.dispora.demo"
     },
     "android": {
       "package": "id.go.jakarta.dispora.demo",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#0B0C10"
-      }
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "permissions": [
+        "INTERNET"
+      ]
     },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
     },
-    "newArchEnabled": false
+    "newArchEnabled": false,
+    "extra": {
+      "eas": {
+        "projectId": "02ddc74d-75d2-4875-ab1f-468f02714916"
+      }
+    },
+    "owner": "dayatdev"
   }
 }

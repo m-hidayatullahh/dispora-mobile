@@ -1,89 +1,90 @@
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, radius, spacing, type } from '../theme';
+import { useTheme, useThemedStyles, spacing, radius } from '../theme';
+import { useI18n } from '../i18n/i18n';
 import { Tag, PrimaryButton, Divider } from '../components/common';
 
-export default function EventDetailScreen({ route }) {
+export default function EventDetailScreen({ route, navigation }) {
+  const { colors } = useTheme();
+  const { t } = useI18n();
+  const s = useThemedStyles(makeStyles);
   const { event } = route.params;
   const isOpen = event.status === 'Pendaftaran dibuka';
 
+  const Row = ({ icon, label, value }) => (
+    <View style={s.row}>
+      <Ionicons name={icon} size={17} color={colors.primary} />
+      <View style={s.rowBody}>
+        <Text style={s.rowLabel}>{label}</Text>
+        <Text style={s.rowValue}>{value}</Text>
+      </View>
+    </View>
+  );
+
+  const onCta = () => {
+    if (event.registrationUrl) {
+      Linking.openURL(event.registrationUrl).catch(() => {});
+      return;
+    }
+    navigation.navigate('Payment', {
+      order: { item: event.title, amount: 75000, detail: event.date },
+    });
+  };
+
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.tags}>
+    <ScrollView style={s.screen} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <View style={s.tags}>
         <Tag label={event.category} tone="gold" />
         <Tag label={event.status} tone={isOpen ? 'primary' : 'neutral'} />
       </View>
 
-      <Text style={styles.title}>{event.title}</Text>
+      <Text style={s.title}>{event.title}</Text>
 
-      <View style={styles.infoCard}>
-        <Row icon="calendar-outline" label="Tanggal" value={event.date} />
-        <Divider style={styles.rowDivider} />
-        <Row icon="location-outline" label="Lokasi" value={event.location} />
-        <Divider style={styles.rowDivider} />
-        <Row icon="pricetag-outline" label="Kategori" value={event.category} />
+      <View style={s.infoCard}>
+        <Row icon="calendar-outline" label={t('events.date')} value={event.date} />
+        <Divider />
+        <Row icon="location-outline" label={t('events.location')} value={event.location} />
+        <Divider />
+        <Row icon="pricetag-outline" label={t('events.category')} value={event.category} />
       </View>
 
-      <Text style={styles.sectionLabel}>Tentang kegiatan</Text>
-      <Text style={styles.body}>{event.description}</Text>
+      <Text style={s.sectionLabel}>{t('events.about')}</Text>
+      <Text style={s.body}>{event.description}</Text>
 
       <PrimaryButton
-        label={isOpen ? 'Daftar sekarang' : 'Lihat dokumentasi'}
+        label={isOpen ? t('home.ctaRegister') : t('common.more')}
         icon="arrow-forward"
-        onPress={() => {}}
-        style={styles.cta}
+        onPress={onCta}
+        style={{ marginTop: spacing.xl }}
       />
     </ScrollView>
   );
 }
 
-function Row({ icon, label, value }) {
-  return (
-    <View style={styles.row}>
-      <Ionicons name={icon} size={17} color={colors.primary} />
-      <View style={styles.rowBody}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        <Text style={styles.rowValue}>{value}</Text>
-      </View>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.base },
+const makeStyles = (c, t) => ({
+  screen: { flex: 1, backgroundColor: c.base },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl * 2 },
   tags: { flexDirection: 'row', gap: spacing.sm },
-  title: { ...type.display, fontSize: 25, lineHeight: 31, marginTop: spacing.md },
+  title: { ...t.display, fontSize: 25, lineHeight: 31, marginTop: spacing.md },
   infoCard: {
     marginTop: spacing.xl,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
     paddingHorizontal: spacing.lg,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-  },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, paddingVertical: spacing.md },
   rowBody: { flex: 1, gap: 2 },
-  rowLabel: { ...type.small, fontSize: 11 },
-  rowValue: { ...type.subtitle, fontSize: 14, fontWeight: '600' },
-  rowDivider: { marginLeft: 0 },
+  rowLabel: { ...t.small, fontSize: 11 },
+  rowValue: { ...t.subtitle, fontSize: 14, fontWeight: '600' },
   sectionLabel: {
-    ...type.eyebrow,
-    color: colors.textFaint,
+    ...t.eyebrow,
+    color: c.textFaint,
     marginTop: spacing.xl,
     marginBottom: spacing.sm,
   },
-  body: { ...type.body, fontSize: 14, lineHeight: 22 },
-  cta: { marginTop: spacing.xl },
+  body: { ...t.body, fontSize: 14, lineHeight: 22 },
 });

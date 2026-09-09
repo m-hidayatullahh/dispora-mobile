@@ -2,72 +2,112 @@ import React from 'react';
 import { View, Text, Image, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, radius, spacing, shadow, type } from '../theme';
+import { useTheme, useThemedStyles, spacing, radius, shadow } from '../theme';
 import { Tag } from './common';
+import { cleanText } from '../api/dispora';
 
-export function ProgramCard({ item, onPress }) {
-  const accentColor =
-    item.accent === 'gold' ? colors.gold : item.accent === 'blue' ? colors.blue : colors.primary;
+export function HeroCard({ item, onPress, ctaLabel }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(makeStyles);
+  const excerpt = cleanText(item.excerpt);
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.program, pressed && styles.pressed]}>
-      <View style={styles.programMedia}>
-        <Image source={{ uri: item.image }} style={styles.programImage} resizeMode="cover" />
+    <Pressable onPress={onPress} style={({ pressed }) => [s.hero, pressed && s.pressed]}>
+      <View style={s.heroMedia}>
+        {item.bannerImage || item.image ? (
+          <Image
+            source={{ uri: item.bannerImage || item.image }}
+            style={s.heroImage}
+            resizeMode="cover"
+          />
+        ) : null}
         <LinearGradient
-          colors={['transparent', 'rgba(11,12,16,0.35)', colors.surface]}
+          colors={['transparent', 'rgba(11,12,16,0.55)', 'rgba(11,12,16,0.92)']}
           style={StyleSheet.absoluteFill}
         />
-        <View style={[styles.programStripe, { backgroundColor: accentColor }]} />
       </View>
 
-      <View style={styles.programBody}>
-        <Tag label={item.tag} tone={item.accent} />
-        <Text style={styles.programTitle}>{item.title}</Text>
-        <Text style={styles.programDesc} numberOfLines={3}>
-          {item.description}
+      <View style={s.heroBody}>
+        <View style={s.heroTags}>
+          <Tag label={item.heroBadge || item.type || 'INFO'} tone="primary" />
+          {item.date ? <Tag label={item.date} tone="neutral" /> : null}
+        </View>
+        <Text style={s.heroTitle} numberOfLines={3}>
+          {item.title}
         </Text>
-
-        {item.children?.length ? (
-          <View style={styles.programChildren}>
-            {item.children.map((c) => (
-              <View key={c.code} style={styles.childRow}>
-                <Text style={[styles.childCode, { color: accentColor }]}>{c.code}</Text>
-                <Text style={styles.childLabel}>{c.label}</Text>
-              </View>
-            ))}
-          </View>
+        {excerpt ? (
+          <Text style={s.heroExcerpt} numberOfLines={3}>
+            {excerpt}
+          </Text>
         ) : null}
-
-        <View style={styles.programFooter}>
-          <Text style={styles.programLink}>Selengkapnya</Text>
-          <Ionicons name="arrow-forward" size={14} color={colors.text} />
+        <View style={s.heroCta}>
+          <Text style={s.heroCtaText}>{item.heroCtaText || ctaLabel}</Text>
+          <Ionicons name="arrow-forward" size={14} color={colors.onPrimary} />
         </View>
       </View>
     </Pressable>
   );
 }
 
+export function ProgramCard({ item, onPress }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(makeStyles);
+  const accentColor =
+    item.accent === 'gold' ? colors.gold : item.accent === 'blue' ? colors.blue : colors.primary;
+
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [s.program, pressed && s.pressed]}>
+      <View style={s.programMedia}>
+        <Image source={{ uri: item.image }} style={s.programImage} resizeMode="cover" />
+        <View style={[s.programStripe, { backgroundColor: accentColor }]} />
+      </View>
+
+      <View style={s.programBody}>
+        <Tag label={item.tag} tone={item.accent} />
+        <Text style={s.programTitle}>{item.title}</Text>
+        <Text style={s.programDesc} numberOfLines={3}>
+          {item.description}
+        </Text>
+
+        {item.children?.length ? (
+          <View style={s.programChildren}>
+            {item.children.map((ch) => (
+              <View key={ch.code} style={s.childRow}>
+                <Text style={[s.childCode, { color: accentColor }]}>{ch.code}</Text>
+                <Text style={s.childLabel}>{ch.label}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
 export function EventCard({ item, onPress, wide = false }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(makeStyles);
   const isOpen = item.status === 'Pendaftaran dibuka';
+
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.event, wide && styles.eventWide, pressed && styles.pressed]}
+      style={({ pressed }) => [s.event, wide && s.eventWide, pressed && s.pressed]}
     >
-      <View style={styles.eventTop}>
+      <View style={s.eventTop}>
         <Tag label={item.category} tone="gold" />
         <Tag label={item.status} tone={isOpen ? 'primary' : 'neutral'} />
       </View>
-      <Text style={styles.eventTitle} numberOfLines={3}>
+      <Text style={s.eventTitle} numberOfLines={3}>
         {item.title}
       </Text>
-      <View style={styles.metaRow}>
+      <View style={s.metaRow}>
         <Ionicons name="calendar-outline" size={13} color={colors.textFaint} />
-        <Text style={styles.metaText}>{item.date}</Text>
+        <Text style={s.metaText}>{item.date}</Text>
       </View>
-      <View style={styles.metaRow}>
+      <View style={s.metaRow}>
         <Ionicons name="location-outline" size={13} color={colors.textFaint} />
-        <Text style={styles.metaText} numberOfLines={2}>
+        <Text style={s.metaText} numberOfLines={2}>
           {item.location}
         </Text>
       </View>
@@ -75,26 +115,29 @@ export function EventCard({ item, onPress, wide = false }) {
   );
 }
 
-export function NewsCard({ item, onPress, compact = false }) {
+export function NewsCard({ item, onPress, compact = false, readLabel }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(makeStyles);
+
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.news, compact && styles.newsCompact, pressed && styles.pressed]}
+      style={({ pressed }) => [s.news, compact && s.newsCompact, pressed && s.pressed]}
     >
-      <View style={styles.newsAccent} />
-      <View style={styles.newsBody}>
-        <View style={styles.newsTop}>
+      <View style={s.newsAccent} />
+      <View style={s.newsBody}>
+        <View style={s.newsTop}>
           <Tag label={item.category} tone="primary" />
-          <Text style={styles.newsDate}>{item.date}</Text>
+          <Text style={s.newsDate}>{item.date}</Text>
         </View>
-        <Text style={styles.newsTitle} numberOfLines={compact ? 2 : 3}>
+        <Text style={s.newsTitle} numberOfLines={compact ? 2 : 3}>
           {item.title}
         </Text>
-        <Text style={styles.newsExcerpt} numberOfLines={compact ? 2 : 3}>
-          {item.excerpt}
+        <Text style={s.newsExcerpt} numberOfLines={compact ? 2 : 3}>
+          {cleanText(item.excerpt)}
         </Text>
-        <View style={styles.newsFooter}>
-          <Text style={styles.newsLink}>Baca selengkapnya</Text>
+        <View style={s.newsFooter}>
+          <Text style={s.newsLink}>{readLabel}</Text>
           <Ionicons name="arrow-forward" size={13} color={colors.gold} />
         </View>
       </View>
@@ -102,44 +145,56 @@ export function NewsCard({ item, onPress, compact = false }) {
   );
 }
 
-export function FacilityCard({ item, onPress }) {
+export function FacilityCard({ item, onPress, actionLabel }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(makeStyles);
+
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.facility, pressed && styles.pressed]}>
-      <View style={styles.facilityIcon}>
+    <View style={s.facility}>
+      <View style={s.facilityIcon}>
         <Ionicons name="business-outline" size={20} color={colors.primary} />
       </View>
-      <View style={styles.facilityBody}>
-        <Text style={styles.facilityName} numberOfLines={2}>
+      <View style={s.facilityBody}>
+        <Text style={s.facilityName} numberOfLines={2}>
           {item.name}
         </Text>
-        <View style={styles.metaRow}>
+        <View style={s.metaRow}>
           <Ionicons name="location-outline" size={12} color={colors.textFaint} />
-          <Text style={styles.metaText}>
+          <Text style={s.metaText}>
             {item.area} · {item.type}
           </Text>
         </View>
-        <View style={styles.metaRow}>
+        <View style={s.metaRow}>
           <Ionicons name="time-outline" size={12} color={colors.textFaint} />
-          <Text style={styles.metaText}>{item.open}</Text>
+          <Text style={s.metaText}>{item.open}</Text>
         </View>
-        <Text style={styles.facilityPrice}>{item.price}</Text>
+        <View style={s.facilityFooter}>
+          <Text style={s.facilityPrice}>{item.price}</Text>
+          <Pressable
+            onPress={onPress}
+            style={({ pressed }) => [s.bookButton, pressed && s.pressed]}
+          >
+            <Text style={s.bookButtonText}>{actionLabel}</Text>
+          </Pressable>
+        </View>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
 export function AthleteCard({ item }) {
+  const s = useThemedStyles(makeStyles);
   return (
-    <View style={styles.athlete}>
-      <Image source={{ uri: item.image }} style={styles.athleteImage} resizeMode="cover" />
+    <View style={s.athlete}>
+      <Image source={{ uri: item.image }} style={s.athleteImage} resizeMode="cover" />
       <LinearGradient
         colors={['transparent', 'rgba(11,12,16,0.55)', 'rgba(11,12,16,0.95)']}
         style={StyleSheet.absoluteFill}
       />
-      <View style={styles.athleteBody}>
-        <Text style={styles.athleteAchievement}>{item.achievement}</Text>
-        <Text style={styles.athleteName}>{item.name}</Text>
-        <Text style={styles.athleteQuote} numberOfLines={3}>
+      <View style={s.athleteBody}>
+        <Text style={s.athleteAchievement}>{item.achievement}</Text>
+        <Text style={s.athleteName}>{item.name}</Text>
+        <Text style={s.athleteQuote} numberOfLines={3}>
           {item.quote}
         </Text>
       </View>
@@ -147,232 +202,197 @@ export function AthleteCard({ item }) {
   );
 }
 
-const styles = StyleSheet.create({
+export function TicketCard({ item }) {
+  const { colors } = useTheme();
+  const s = useThemedStyles(makeStyles);
+
+  const status = String(item.status || 'OPEN').toUpperCase();
+  const tone = status.includes('CLOSE') || status.includes('DONE')
+    ? 'success'
+    : status.includes('PROGRESS') || status.includes('PENDING')
+      ? 'gold'
+      : 'primary';
+
+  return (
+    <View style={s.ticket}>
+      <View style={s.ticketTop}>
+        <Text style={s.ticketCode}>#{item.ticketNumber || item.code || item.id}</Text>
+        <Tag label={status} tone={tone} />
+      </View>
+      <Text style={s.ticketSubject} numberOfLines={2}>
+        {item.subject || item.title || '-'}
+      </Text>
+      {item.message || item.description ? (
+        <Text style={s.ticketBody} numberOfLines={2}>
+          {cleanText(item.message || item.description)}
+        </Text>
+      ) : null}
+      <View style={s.metaRow}>
+        <Ionicons name="person-outline" size={12} color={colors.textFaint} />
+        <Text style={s.metaText}>{item.name || item.requester || 'Anonim'}</Text>
+      </View>
+      {item.createdAt ? (
+        <View style={s.metaRow}>
+          <Ionicons name="time-outline" size={12} color={colors.textFaint} />
+          <Text style={s.metaText}>{String(item.createdAt).slice(0, 10)}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const makeStyles = (c, t) => ({
   pressed: { opacity: 0.85 },
 
-  // Program
+  hero: {
+    marginHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    backgroundColor: c.surfaceAlt,
+    borderWidth: 1,
+    borderColor: c.line,
+    minHeight: 330,
+    ...shadow.card,
+  },
+  heroMedia: { ...StyleSheet.absoluteFillObject, backgroundColor: c.surfaceAlt },
+  heroImage: { width: '100%', height: '100%' },
+  heroBody: { marginTop: 'auto', padding: spacing.lg, gap: spacing.sm },
+  heroTags: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
+  heroTitle: { fontSize: 22, lineHeight: 28, fontWeight: '900', color: '#FFFFFF' },
+  heroExcerpt: { fontSize: 13, lineHeight: 20, color: '#D5D9E4' },
+  heroCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: spacing.xs,
+    backgroundColor: c.primary,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.pill,
+  },
+  heroCtaText: { color: c.onPrimary, fontSize: 12, fontWeight: '800' },
+
   program: {
     width: 268,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
     overflow: 'hidden',
     ...shadow.card,
   },
-  programMedia: {
-    height: 128,
-    backgroundColor: colors.surfaceAlt,
-  },
-  programImage: {
-    width: '100%',
-    height: '100%',
-  },
-  programStripe: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 4,
-  },
-  programBody: {
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  programTitle: {
-    ...type.subtitle,
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  programDesc: {
-    ...type.body,
-    fontSize: 13,
-  },
-  programChildren: {
-    gap: 6,
-    paddingTop: 2,
-  },
-  childRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  childCode: {
-    fontSize: 11,
-    fontWeight: '900',
-    width: 44,
-  },
-  childLabel: {
-    ...type.small,
-    flex: 1,
-  },
-  programFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: spacing.xs,
-  },
-  programLink: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: '800',
-  },
+  programMedia: { height: 128, backgroundColor: c.surfaceAlt },
+  programImage: { width: '100%', height: '100%' },
+  programStripe: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
+  programBody: { padding: spacing.lg, gap: spacing.sm },
+  programTitle: { ...t.subtitle, fontSize: 18, fontWeight: '900' },
+  programDesc: { ...t.body, fontSize: 13 },
+  programChildren: { gap: 6, paddingTop: 2 },
+  childRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  childCode: { fontSize: 11, fontWeight: '900', width: 44 },
+  childLabel: { ...t.small, flex: 1 },
 
-  // Event
   event: {
     width: 250,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
     padding: spacing.lg,
     gap: 6,
   },
-  eventWide: {
-    width: '100%',
-  },
+  eventWide: { width: '100%' },
   eventTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.xs,
+    gap: spacing.sm,
   },
-  eventTitle: {
-    ...type.subtitle,
-    fontSize: 15,
-    lineHeight: 21,
-    marginBottom: spacing.xs,
-  },
+  eventTitle: { ...t.subtitle, fontSize: 15, lineHeight: 21, marginBottom: spacing.xs },
 
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  metaText: {
-    ...type.small,
-    flex: 1,
-  },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaText: { ...t.small, flex: 1 },
 
-  // News
   news: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
     overflow: 'hidden',
   },
-  newsCompact: {
-    width: 290,
-  },
-  newsAccent: {
-    width: 4,
-    backgroundColor: colors.primary,
-  },
-  newsBody: {
-    flex: 1,
-    padding: spacing.lg,
-    gap: 6,
-  },
-  newsTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  newsDate: {
-    ...type.small,
-    fontSize: 11,
-  },
-  newsTitle: {
-    ...type.subtitle,
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  newsExcerpt: {
-    ...type.body,
-    fontSize: 13,
-  },
-  newsFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 2,
-  },
-  newsLink: {
-    color: colors.gold,
-    fontSize: 12,
-    fontWeight: '800',
-  },
+  newsCompact: { width: 290 },
+  newsAccent: { width: 4, backgroundColor: c.primary },
+  newsBody: { flex: 1, padding: spacing.lg, gap: 6 },
+  newsTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  newsDate: { ...t.small, fontSize: 11 },
+  newsTitle: { ...t.subtitle, fontSize: 15, lineHeight: 21 },
+  newsExcerpt: { ...t.body, fontSize: 13 },
+  newsFooter: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+  newsLink: { color: c.gold, fontSize: 12, fontWeight: '800' },
 
-  // Facility
   facility: {
     flexDirection: 'row',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
     padding: spacing.lg,
   },
   facilityIcon: {
     width: 44,
     height: 44,
     borderRadius: radius.sm,
-    backgroundColor: colors.primarySoft,
+    backgroundColor: c.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  facilityBody: {
-    flex: 1,
-    gap: 5,
+  facilityBody: { flex: 1, gap: 5 },
+  facilityName: { ...t.subtitle, fontSize: 15 },
+  facilityFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    gap: spacing.sm,
   },
-  facilityName: {
-    ...type.subtitle,
-    fontSize: 15,
+  facilityPrice: { color: c.gold, fontSize: 13, fontWeight: '800', flex: 1 },
+  bookButton: {
+    backgroundColor: c.primary,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.pill,
   },
-  facilityPrice: {
-    color: colors.gold,
-    fontSize: 13,
-    fontWeight: '800',
-    marginTop: 2,
-  },
+  bookButtonText: { color: c.onPrimary, fontSize: 12, fontWeight: '800' },
 
-  // Athlete
   athlete: {
     width: 220,
     height: 280,
     borderRadius: radius.lg,
     overflow: 'hidden',
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: c.surfaceAlt,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
   },
-  athleteImage: {
-    width: '100%',
-    height: '100%',
-  },
-  athleteBody: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
+  athleteImage: { width: '100%', height: '100%' },
+  athleteBody: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: spacing.lg, gap: 4 },
+  athleteAchievement: { ...t.eyebrow, letterSpacing: 0.8 },
+  athleteName: { fontSize: 18, fontWeight: '900', color: '#FFFFFF' },
+  athleteQuote: { fontSize: 12, lineHeight: 18, color: '#C9CDDA', fontStyle: 'italic' },
+
+  ticket: {
+    backgroundColor: c.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: c.line,
     padding: spacing.lg,
-    gap: 4,
+    gap: 6,
   },
-  athleteAchievement: {
-    ...type.eyebrow,
-    letterSpacing: 0.8,
-  },
-  athleteName: {
-    ...type.subtitle,
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  athleteQuote: {
-    ...type.body,
-    fontSize: 12,
-    color: '#C9CDDA',
-    fontStyle: 'italic',
-  },
+  ticketTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  ticketCode: { color: c.primary, fontSize: 12, fontWeight: '900' },
+  ticketSubject: { ...t.subtitle, fontSize: 15, lineHeight: 21 },
+  ticketBody: { ...t.body, fontSize: 13 },
 });

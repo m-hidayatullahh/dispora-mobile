@@ -7,8 +7,8 @@ import { useI18n } from '../i18n/i18n';
 import { fetchHelpdeskTickets } from '../api/dispora';
 import { TicketCard } from '../components/cards';
 import { EmptyState, Loader, Notice, PrimaryButton } from '../components/common';
+import { FadeInUp, stagger } from '../components/anim';
 
-// Dipakai kalau endpoint admin menolak akses.
 const SAMPLE_TICKETS = [
   {
     id: 1042,
@@ -56,10 +56,14 @@ export default function HelpdeskScreen() {
   const load = useCallback(async () => {
     try {
       const data = await fetchHelpdeskTickets();
-      setTickets(data);
-      setUsingSample(false);
+      if (Array.isArray(data) && data.length > 0) {
+        setTickets(data);
+        setUsingSample(false);
+      } else {
+        setTickets(SAMPLE_TICKETS);
+        setUsingSample(true);
+      }
     } catch (e) {
-      // 401/403 atau HTML login page — pakai contoh supaya demo tetap jalan
       setTickets(SAMPLE_TICKETS);
       setUsingSample(true);
     } finally {
@@ -86,42 +90,50 @@ export default function HelpdeskScreen() {
 
   if (loading) return <Loader label={t('common.loading')} />;
 
+  const header = (
+    <View style={s.headerWrap}>
+      <Text style={s.caption}>{t('helpdesk.caption')}</Text>
+      {usingSample ? (
+        <Notice text={t('helpdesk.authError')} tone="gold" icon="lock-closed-outline" />
+      ) : null}
+
+      <View style={s.chipsRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.chips}
+        >
+          {FILTERS.map((f) => {
+            const active = f === filter;
+            return (
+              <Pressable
+                key={f}
+                onPress={() => setFilter(f)}
+                style={[s.chip, active && s.chipActive]}
+              >
+                <Text style={[s.chipText, active && s.chipTextActive]}>{labelFor(f)}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+    </View>
+  );
+
   return (
     <View style={s.screen}>
-      <View style={s.head}>
-        <Text style={s.caption}>{t('helpdesk.caption')}</Text>
-        {usingSample ? (
-          <Notice text={t('helpdesk.authError')} tone="gold" icon="lock-closed-outline" />
-        ) : null}
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={s.chips}
-        style={s.chipsWrap}
-      >
-        {FILTERS.map((f) => {
-          const active = f === filter;
-          return (
-            <Pressable
-              key={f}
-              onPress={() => setFilter(f)}
-              style={[s.chip, active && s.chipActive]}
-            >
-              <Text style={[s.chipText, active && s.chipTextActive]}>{labelFor(f)}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-
       <FlatList
         data={filtered}
         keyExtractor={(item, i) => String(item.id ?? item.ticketNumber ?? i)}
+        ListHeaderComponent={header}
         contentContainerStyle={[s.list, { paddingBottom: insets.bottom + spacing.xxl }]}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => <TicketCard item={item} />}
+        renderItem={({ item, index }) => (
+          <FadeInUp delay={stagger(index)}>
+            <TicketCard item={item} />
+          </FadeInUp>
+        )}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -146,13 +158,14 @@ export default function HelpdeskScreen() {
 
 const makeStyles = (c, t) => ({
   screen: { flex: 1, backgroundColor: c.base },
-  head: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: spacing.md },
+  headerWrap: { gap: spacing.md, marginBottom: spacing.lg },
   caption: { ...t.body },
-  chipsWrap: { flexGrow: 0 },
-  chips: { paddingHorizontal: spacing.lg, gap: spacing.sm },
+  chipsRow: { height: 38 },
+  chips: { gap: spacing.sm, alignItems: 'center' },
   chip: {
     paddingHorizontal: spacing.md,
-    paddingVertical: 7,
+    height: 34,
+    justifyContent: 'center',
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: c.line,
@@ -161,5 +174,5 @@ const makeStyles = (c, t) => ({
   chipActive: { backgroundColor: c.primary, borderColor: c.primary },
   chipText: { color: c.textMuted, fontSize: 12, fontWeight: '700' },
   chipTextActive: { color: c.onPrimary },
-  list: { padding: spacing.lg },
+  list: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
 });

@@ -1,46 +1,82 @@
-import React from 'react';
-import { View, Text, ScrollView, Image, Pressable, Linking } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, Image, Linking, Share, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme, useThemedStyles, spacing, radius } from '../theme';
 import { useI18n } from '../i18n/i18n';
 import { Tag, PrimaryButton } from '../components/common';
+import { FadeInUp, PressableScale, stagger } from '../components/anim';
+
+const SITE = 'https://dispora.jakarta.go.id';
 
 export default function NewsDetailScreen({ route }) {
   const { colors } = useTheme();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const s = useThemedStyles(makeStyles);
   const { article } = route.params;
+  const [sharing, setSharing] = useState(false);
 
   const paragraphs = String(article.body || article.excerpt || '')
     .split('\n')
     .map((p) => p.trim())
     .filter(Boolean);
 
+  const onShare = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const url = article.registrationUrl || (article.id ? `${SITE}/news/${article.id}` : SITE);
+      const intro = article.excerpt ? `\n\n${article.excerpt}` : '';
+      const message = `${article.title}${intro}\n\n${url}`;
+
+      const result = await Share.share(
+        { title: article.title, message },
+        { dialogTitle: t('news.share'), subject: article.title }
+      );
+
+      if (result.action === Share.dismissedAction) {
+        // pengguna menutup sheet, tidak perlu pesan apa pun
+      }
+    } catch (e) {
+      Alert.alert(
+        t('news.share'),
+        lang === 'en' ? 'Failed to open the share sheet.' : 'Gagal membuka menu berbagi.'
+      );
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
       {article.image ? (
-        <Image source={{ uri: article.image }} style={s.cover} resizeMode="cover" />
+        <FadeInUp>
+          <Image source={{ uri: article.image }} style={s.cover} resizeMode="cover" />
+        </FadeInUp>
       ) : null}
 
-      <View style={s.metaTop}>
-        <Tag label={article.category} tone="primary" />
-        <Text style={s.date}>{article.date}</Text>
-      </View>
+      <FadeInUp delay={60}>
+        <View style={s.metaTop}>
+          <Tag label={article.category} tone="primary" />
+          {article.date ? <Text style={s.date}>{article.date}</Text> : null}
+        </View>
 
-      <Text style={s.title}>{article.title}</Text>
+        <Text style={s.title}>{article.title}</Text>
+      </FadeInUp>
 
       {article.excerpt ? (
-        <View style={s.lead}>
-          <View style={s.leadBar} />
-          <Text style={s.leadText}>{article.excerpt}</Text>
-        </View>
+        <FadeInUp delay={110}>
+          <View style={s.lead}>
+            <View style={s.leadBar} />
+            <Text style={s.leadText}>{article.excerpt}</Text>
+          </View>
+        </FadeInUp>
       ) : null}
 
       {paragraphs.map((p, i) => (
-        <Text key={i} style={s.paragraph}>
-          {p}
-        </Text>
+        <FadeInUp key={i} delay={stagger(i + 3, 45, 320)}>
+          <Text style={s.paragraph}>{p}</Text>
+        </FadeInUp>
       ))}
 
       {article.registrationUrl ? (
@@ -52,10 +88,10 @@ export default function NewsDetailScreen({ route }) {
         />
       ) : null}
 
-      <Pressable style={s.share}>
+      <PressableScale onPress={onShare} style={s.share} scaleTo={0.95}>
         <Ionicons name="share-social-outline" size={16} color={colors.gold} />
         <Text style={s.shareText}>{t('news.share')}</Text>
-      </Pressable>
+      </PressableScale>
     </ScrollView>
   );
 }

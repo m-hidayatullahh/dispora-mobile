@@ -9,6 +9,7 @@ import {
   FlatList,
   Linking,
   Alert,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +19,7 @@ import { useI18n } from '../i18n/i18n';
 import { useAuth } from '../context/AuthContext';
 import { getFacilityDetail, formatRupiah } from '../data/facilities';
 import { PrimaryButton, Divider } from '../components/common';
+import { FadeInUp, PressableScale, stagger } from '../components/anim';
 
 const L = {
   id: {
@@ -59,6 +61,7 @@ const L = {
     address: 'ALAMAT',
     subFacility: 'SUB-FASILITAS',
     needPurpose: 'Pilih tujuan penggunaan dan tanggal dulu.',
+    share: 'Bagikan fasilitas ini',
   },
   en: {
     mainInfo: 'Main Facility Information',
@@ -99,6 +102,7 @@ const L = {
     address: 'ADDRESS',
     subFacility: 'SUB-FACILITY',
     needPurpose: 'Select a purpose and date first.',
+    share: 'Share this facility',
   },
 };
 
@@ -177,6 +181,16 @@ export default function FacilityDetailScreen({ route, navigation }) {
           year: 'numeric',
         })
       : null;
+
+  const onShare = async () => {
+    try {
+      const url = `https://dispora.jakarta.go.id/facilities/${detail.id}`;
+      const message = `${detail.name} (${detail.category})\n${detail.address}\n${detail.operationalHours}\n\n${url}`;
+      await Share.share({ title: detail.name, message }, { subject: detail.name });
+    } catch (e) {
+      Alert.alert(tx.share, lang === 'en' ? 'Failed to open the share sheet.' : 'Gagal membuka menu berbagi.');
+    }
+  };
 
   const openMaps = () => {
     const q = encodeURIComponent(detail.mapsQuery || detail.address);
@@ -451,12 +465,14 @@ export default function FacilityDetailScreen({ route, navigation }) {
           keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ gap: spacing.md, paddingVertical: spacing.sm }}
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const active = selectedSub && selectedSub.id === item.id;
             return (
-              <Pressable
+              <FadeInUp delay={stagger(index, 60, 240)}>
+              <PressableScale
                 onPress={() => setSelectedSub(item)}
                 style={[s.subCard, active && s.subCardActive]}
+                scaleTo={0.95}
               >
                 <View style={s.subMedia}>
                   <Image source={{ uri: item.image }} style={s.subImage} resizeMode="cover" />
@@ -474,7 +490,8 @@ export default function FacilityDetailScreen({ route, navigation }) {
                   <Text style={s.subStatus}>{tx.available}</Text>
                 </View>
                 <Text style={[s.subPick, active && s.subPickActive]}>{tx.pick} →</Text>
-              </Pressable>
+              </PressableScale>
+              </FadeInUp>
             );
           }}
         />
@@ -626,6 +643,11 @@ export default function FacilityDetailScreen({ route, navigation }) {
           <Text style={s.contactBoxValue}>{detail.address}</Text>
         </View>
       </View>
+
+      <PressableScale onPress={onShare} style={s.shareButton} scaleTo={0.95}>
+        <Ionicons name="share-social-outline" size={16} color={colors.gold} />
+        <Text style={s.shareText}>{tx.share}</Text>
+      </PressableScale>
     </ScrollView>
   );
 }
@@ -900,7 +922,7 @@ const makeStyles = (c, t) => ({
     borderColor: c.line,
   },
   searchInput: { flex: 1, color: c.text, fontSize: 13, padding: 0 },
-  sportChips: { flexGrow: 0 },
+  sportChips: { height: 34, flexGrow: 0, flexShrink: 0 },
   sportChip: {
     paddingHorizontal: spacing.md,
     paddingVertical: 6,
@@ -1081,6 +1103,21 @@ const makeStyles = (c, t) => ({
     padding: spacing.md,
     gap: 4,
   },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: c.line,
+    backgroundColor: c.surface,
+  },
+  shareText: { color: c.text, fontSize: 13, fontWeight: '700' },
+
   contactBoxLabel: { ...t.small, fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
   contactBoxValue: { ...t.subtitle, fontSize: 13 },
 });

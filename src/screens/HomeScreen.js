@@ -15,22 +15,38 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme, useThemedStyles, spacing, radius } from '../theme';
 import { useI18n } from '../i18n/i18n';
-import { fetchHero, cleanText } from '../api/dispora';
+import { fetchHomeContent } from '../api/dispora';
 import {
-  heroQuotes,
-  programs,
+  heroQuotes as fallbackQuotes,
+  programs as fallbackPrograms,
   events,
   news,
-  athletes,
-  stats,
+  athletes as fallbackAthletes,
   helpdesk,
   marqueeWords,
 } from '../data/content';
-import { SectionHeading, PrimaryButton, StatBox, Tag, Skeleton, Notice } from '../components/common';
+import { SectionHeading, PrimaryButton, Tag, Skeleton, Notice } from '../components/common';
 import { HeroCard, ProgramCard, EventCard, NewsCard, AthleteCard } from '../components/cards';
 import { LogoMark } from '../components/Logo';
+import {
+  FadeInUp,
+  PressableScale,
+  AnimatedCounter,
+  LiveDot,
+  stagger,
+} from '../components/anim';
 
 const { width } = Dimensions.get('window');
+
+// Angka contoh. Situs Dispora tidak mengekspos endpoint statistik,
+// jadi nilainya statis dan hanya dianimasikan saat muncul.
+const REALTIME_STATS = [
+  { id: 's1', label: 'Aktif saat ini', labelEn: 'Active now', value: 334, unit: 'PAX' },
+  { id: 's2', label: 'Kunjungan hari ini', labelEn: 'Today', value: 8956, unit: 'HITS' },
+  { id: 's3', label: 'Minggu ini', labelEn: 'This week', value: 25863, unit: 'HITS' },
+  { id: 's4', label: 'Bulan ini', labelEn: 'This month', value: 122313, unit: 'HITS' },
+  { id: 's5', label: 'Tahun ini', labelEn: 'This year', value: 4004950, unit: 'HITS' },
+];
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -38,34 +54,46 @@ export default function HomeScreen({ navigation }) {
   const { t, lang, setLang } = useI18n();
   const s = useThemedStyles(makeStyles);
 
-  const [hero, setHero] = useState([]);
-  const [heroLoading, setHeroLoading] = useState(true);
-  const [heroError, setHeroError] = useState(false);
+  const [content, setContent] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [quoteIndex, setQuoteIndex] = useState(0);
 
-  const loadHero = useCallback(async () => {
-    setHeroError(false);
+  const load = useCallback(async () => {
     try {
-      const data = await fetchHero();
-      setHero(Array.isArray(data) ? data : []);
+      const data = await fetchHomeContent();
+      setContent(data);
     } catch (e) {
-      setHeroError(true);
-      setHero([]);
+      setContent({ errors: { all: e } });
     } finally {
-      setHeroLoading(false);
+      setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    loadHero();
-  }, [loadHero]);
+    load();
+  }, [load]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadHero();
+    load();
   };
+
+  // Pakai data API kalau ada isinya, kalau tidak jatuh ke data lokal.
+  const pickList = (key, fallback) => {
+    const v = content && content[key];
+    return Array.isArray(v) && v.length > 0 ? v : fallback;
+  };
+
+  const hero = (content && content.hero) || [];
+  const programs = pickList('programs', fallbackPrograms);
+  const athletes = pickList('inspiration', fallbackAthletes);
+  const quotes = pickList('quotes', fallbackQuotes);
+  const gallery = (content && content.gallery) || [];
+  const social = (content && content.social) || [];
+
+  const heroFailed = !!(content && content.errors && content.errors.hero);
 
   const openHero = (item) => {
     if (item.registrationUrl) {
@@ -82,8 +110,8 @@ export default function HomeScreen({ navigation }) {
         category: item.type || 'INFO',
         title: item.title,
         date: item.date,
-        excerpt: cleanText(item.excerpt),
-        body: cleanText(item.content || item.excerpt),
+        excerpt: item.excerpt,
+        body: item.content || item.excerpt,
         image: item.bannerImage || item.image,
         registrationUrl: item.registrationUrl,
       },
@@ -129,11 +157,11 @@ export default function HomeScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Hero dari API */}
+      {/* Hero */}
       <View style={s.heroSection}>
         <Text style={s.heroEyebrow}>{t('home.eyebrow')}</Text>
 
-        {heroLoading ? (
+        {loading ? (
           <View style={s.heroSkeleton}>
             <Skeleton height={330} style={{ borderRadius: radius.lg }} />
           </View>
@@ -156,7 +184,7 @@ export default function HomeScreen({ navigation }) {
           />
         ) : (
           <View style={s.heroFallback}>
-            {heroError ? <Notice text={t('common.offline')} tone="gold" /> : null}
+            {heroFailed ? <Notice text={t('common.offline')} tone="gold" /> : null}
             <Text style={s.heroFallbackTitle}>{t('home.heroFallbackTitle')}</Text>
             <Text style={s.heroFallbackBody}>{t('home.heroFallbackBody')}</Text>
             <View style={s.heroButtons}>
@@ -165,37 +193,41 @@ export default function HomeScreen({ navigation }) {
                 icon="arrow-forward"
                 onPress={() => navigation.navigate('Acara')}
               />
-              {heroError ? (
-                <PrimaryButton label={t('common.retry')} variant="ghost" onPress={loadHero} />
+              {heroFailed ? (
+                <PrimaryButton label={t('common.retry')} variant="ghost" onPress={load} />
               ) : null}
             </View>
           </View>
         )}
       </View>
 
-      {/* Kutipan pimpinan */}
-      <ScrollView
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={onQuoteScroll}
-        contentContainerStyle={s.quoteScroll}
-        style={{ marginTop: spacing.xl }}
-      >
-        {heroQuotes.map((q) => (
-          <View key={q.id} style={[s.quoteCard, { width: width - spacing.lg * 2 }]}>
-            <Ionicons name="chatbox-ellipses" size={18} color={colors.gold} />
-            <Text style={s.quoteText}>{q.quote}</Text>
-            <Text style={s.quoteName}>{q.name}</Text>
-            <Text style={s.quoteRole}>{q.role}</Text>
+      {/* Kutipan */}
+      {quotes.length > 0 ? (
+        <>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={onQuoteScroll}
+            contentContainerStyle={s.quoteScroll}
+            style={{ marginTop: spacing.xl }}
+          >
+            {quotes.map((q) => (
+              <View key={q.id} style={[s.quoteCard, { width: width - spacing.lg * 2 }]}>
+                <Ionicons name="chatbox-ellipses" size={18} color={colors.gold} />
+                <Text style={s.quoteText}>{q.quote}</Text>
+                <Text style={s.quoteName}>{q.name}</Text>
+                {q.role ? <Text style={s.quoteRole}>{q.role}</Text> : null}
+              </View>
+            ))}
+          </ScrollView>
+          <View style={s.dots}>
+            {quotes.map((q, i) => (
+              <View key={q.id} style={[s.dot, i === quoteIndex && s.dotActive]} />
+            ))}
           </View>
-        ))}
-      </ScrollView>
-      <View style={s.dots}>
-        {heroQuotes.map((q, i) => (
-          <View key={q.id} style={[s.dot, i === quoteIndex && s.dotActive]} />
-        ))}
-      </View>
+        </>
+      ) : null}
 
       {/* Program unggulan */}
       <View style={s.section}>
@@ -203,18 +235,41 @@ export default function HomeScreen({ navigation }) {
           title={t('home.programs')}
           accentWord={t('home.programsAccent')}
           caption={t('home.programsCaption')}
-          actionLabel={t('home.allPrograms')}
-          onAction={() => {}}
         />
-        <FlatList
-          horizontal
-          data={programs}
-          keyExtractor={(item) => item.id}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.hList}
-          ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
-          renderItem={({ item }) => <ProgramCard item={item} onPress={() => {}} />}
-        />
+        {loading ? (
+          <View style={s.hList}>
+            <Skeleton height={300} style={{ borderRadius: radius.lg }} />
+          </View>
+        ) : (
+          <FlatList
+            horizontal
+            data={programs}
+            keyExtractor={(item) => String(item.id)}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.hList}
+            ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
+            renderItem={({ item }) => (
+              <ProgramCard
+                item={item}
+                onPress={() =>
+                  item.content
+                    ? navigation.navigate('NewsDetail', {
+                        article: {
+                          id: item.id,
+                          category: item.tag,
+                          title: item.title,
+                          date: '',
+                          excerpt: item.description,
+                          body: item.content,
+                          image: item.image,
+                        },
+                      })
+                    : null
+                }
+              />
+            )}
+          />
+        )}
       </View>
 
       {/* Helpdesk */}
@@ -288,13 +343,37 @@ export default function HomeScreen({ navigation }) {
         <FlatList
           horizontal
           data={athletes}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => String(item.id)}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={s.hList}
           ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
           renderItem={({ item }) => <AthleteCard item={item} />}
         />
       </View>
+
+      {/* Galeri */}
+      {gallery.length > 0 ? (
+        <View style={s.section}>
+          <SectionHeading title="GALERI" />
+          <FlatList
+            horizontal
+            data={gallery.slice(0, 12)}
+            keyExtractor={(item) => String(item.id)}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.hList}
+            ItemSeparatorComponent={() => <View style={{ width: spacing.sm }} />}
+            renderItem={({ item }) => (
+              <PressableScale
+                onPress={() => (item.link ? Linking.openURL(item.link).catch(() => {}) : null)}
+                style={s.galleryItem}
+                scaleTo={0.94}
+              >
+                <Image source={{ uri: item.image }} style={s.galleryImage} resizeMode="cover" />
+              </PressableScale>
+            )}
+          />
+        </View>
+      ) : null}
 
       {/* Berita */}
       <View style={s.section}>
@@ -316,32 +395,62 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       {/* Media sosial */}
-      <View style={s.section}>
-        <SectionHeading title="MEDIA SOSIAL" />
-        <View style={s.socialCard}>
-          <Image
-            source={{
-              uri: 'https://fs.dispora.id/image-uploader/assets/img/product_product/ImageIg350.png',
-            }}
-            style={s.socialImage}
-            resizeMode="cover"
+      {social.length > 0 ? (
+        <View style={s.section}>
+          <SectionHeading title="MEDIA SOSIAL" />
+          <FlatList
+            horizontal
+            data={social.slice(0, 8)}
+            keyExtractor={(item) => String(item.id)}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.hList}
+            ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
+            renderItem={({ item }) => (
+              <PressableScale
+                onPress={() => (item.link ? Linking.openURL(item.link).catch(() => {}) : null)}
+                style={s.socialCard}
+              >
+                {item.image ? (
+                  <Image source={{ uri: item.image }} style={s.socialImage} resizeMode="cover" />
+                ) : (
+                  <View style={[s.socialImage, s.socialImageEmpty]}>
+                    <Ionicons name="logo-instagram" size={28} color={colors.textFaint} />
+                  </View>
+                )}
+                <View style={s.socialBody}>
+                  <Text style={s.socialHandle}>{item.handle}</Text>
+                  <Text style={s.socialText} numberOfLines={3}>
+                    {item.caption}
+                  </Text>
+                </View>
+              </PressableScale>
+            )}
           />
-          <View style={s.socialBody}>
-            <Text style={s.socialHandle}>@disporadkijkt</Text>
-            <Text style={s.socialText} numberOfLines={3}>
-              Selamat kepada seluruh finalis dan para juara Duta Pora 2026. Malam final boleh
-              selesai, tapi perjalanan kalian baru dimulai.
-            </Text>
+        </View>
+      ) : null}
+
+      {/* Trafik realtime */}
+      <View style={s.section}>
+        <View style={s.statsHead}>
+          <View style={{ flex: 1 }}>
+            <SectionHeading title={t('home.stats')} caption={t('home.statsCaption')} />
+          </View>
+          <View style={s.livePill}>
+            <LiveDot size={7} />
+            <Text style={s.liveText}>LIVE</Text>
           </View>
         </View>
-      </View>
-
-      {/* Trafik */}
-      <View style={s.section}>
-        <SectionHeading title={t('home.stats')} caption={t('home.statsCaption')} />
         <View style={s.statsGrid}>
-          {stats.map((st) => (
-            <StatBox key={st.id} label={st.label} value={st.value} unit={st.unit} />
+          {REALTIME_STATS.map((st, i) => (
+            <FadeInUp key={st.id} delay={stagger(i, 70, 350)} style={s.statBox}>
+              <AnimatedCounter
+                value={st.value}
+                delay={stagger(i, 70, 350) + 120}
+                style={s.statValue}
+              />
+              <Text style={s.statUnit}>{st.unit}</Text>
+              <Text style={s.statLabel}>{lang === 'en' ? st.labelEn : st.label}</Text>
+            </FadeInUp>
           ))}
         </View>
       </View>
@@ -445,20 +554,44 @@ const makeStyles = (c, t) => ({
   marqueeText: { color: c.textFaint, fontSize: 13, fontWeight: '900', letterSpacing: 1.6 },
   marqueeDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: c.primary },
 
+  galleryItem: {
+    width: 130,
+    height: 130,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    backgroundColor: c.surfaceAlt,
+    borderWidth: 1,
+    borderColor: c.line,
+  },
+  galleryImage: { width: '100%', height: '100%' },
+
   newsList: { paddingHorizontal: spacing.lg, gap: spacing.md },
 
   socialCard: {
-    marginHorizontal: spacing.lg,
+    width: 260,
     backgroundColor: c.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: c.line,
     overflow: 'hidden',
   },
-  socialImage: { width: '100%', height: 190, backgroundColor: c.surfaceAlt },
+  socialImage: { width: '100%', height: 170, backgroundColor: c.surfaceAlt },
+  socialImageEmpty: { alignItems: 'center', justifyContent: 'center' },
   socialBody: { padding: spacing.lg, gap: 6 },
   socialHandle: { color: c.primary, fontSize: 13, fontWeight: '800' },
   socialText: { ...t.body, fontSize: 13 },
+
+  statsHead: { flexDirection: 'row', alignItems: 'flex-start', paddingRight: spacing.lg },
+  livePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    backgroundColor: c.successSoft,
+  },
+  liveText: { color: c.success, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
 
   statsGrid: {
     flexDirection: 'row',
@@ -466,6 +599,19 @@ const makeStyles = (c, t) => ({
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
   },
+  statBox: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    backgroundColor: c.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: c.line,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  statValue: { color: c.text, fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
+  statUnit: { color: c.primary, fontSize: 11, fontWeight: '700', marginTop: 1 },
+  statLabel: { ...t.small, marginTop: spacing.xs },
 
   copyright: { ...t.small, textAlign: 'center', marginTop: spacing.xxl },
 });

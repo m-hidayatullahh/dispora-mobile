@@ -7,6 +7,7 @@ import { useI18n } from '../i18n/i18n';
 import { events } from '../data/content';
 import { EventCard } from '../components/cards';
 import { EmptyState } from '../components/common';
+import { FadeInUp, stagger } from '../components/anim';
 
 const FILTERS = ['Semua', 'Pendaftaran dibuka', 'Akan datang', 'Selesai'];
 
@@ -21,43 +22,53 @@ export default function EventsScreen({ navigation }) {
     [filter]
   );
 
+  const header = (
+    <View style={s.headerWrap}>
+      <Text style={s.title}>{t('events.title')}</Text>
+      <Text style={s.caption}>{t('events.caption')}</Text>
+
+      <View style={s.chipsRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.chips}
+        >
+          {FILTERS.map((f) => {
+            const active = f === filter;
+            return (
+              <Pressable
+                key={f}
+                onPress={() => setFilter(f)}
+                style={[s.chip, active && s.chipActive]}
+              >
+                <Text style={[s.chipText, active && s.chipTextActive]}>
+                  {f === 'Semua' ? t('common.all') : f}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+    </View>
+  );
+
   return (
     <View style={[s.screen, { paddingTop: insets.top + spacing.sm }]}>
-      <View style={s.head}>
-        <Text style={s.title}>{t('events.title')}</Text>
-        <Text style={s.caption}>{t('events.caption')}</Text>
-      </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={s.chips}
-        style={s.chipsWrap}
-      >
-        {FILTERS.map((f) => {
-          const active = f === filter;
-          return (
-            <Pressable key={f} onPress={() => setFilter(f)} style={[s.chip, active && s.chipActive]}>
-              <Text style={[s.chipText, active && s.chipTextActive]}>
-                {f === 'Semua' ? t('common.all') : f}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-
       <FlatList
         data={filtered}
         keyExtractor={(item) => String(item.id)}
+        ListHeaderComponent={header}
         contentContainerStyle={s.list}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <EventCard
-            item={item}
-            wide
-            onPress={() => navigation.navigate('EventDetail', { event: item })}
-          />
+        renderItem={({ item, index }) => (
+          <FadeInUp delay={stagger(index)}>
+            <EventCard
+              item={item}
+              wide
+              onPress={() => navigation.navigate('EventDetail', { event: item })}
+            />
+          </FadeInUp>
         )}
         ListEmptyComponent={<EmptyState icon="calendar-outline" title={t('events.empty')} />}
       />
@@ -67,14 +78,15 @@ export default function EventsScreen({ navigation }) {
 
 const makeStyles = (c, t) => ({
   screen: { flex: 1, backgroundColor: c.base },
-  head: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
+  headerWrap: { gap: spacing.xs, marginBottom: spacing.lg },
   title: { ...t.display, fontSize: 28 },
-  caption: { ...t.body, marginTop: spacing.xs },
-  chipsWrap: { flexGrow: 0 },
-  chips: { paddingHorizontal: spacing.lg, gap: spacing.sm },
+  caption: { ...t.body },
+  chipsRow: { height: 38, marginTop: spacing.md },
+  chips: { gap: spacing.sm, alignItems: 'center' },
   chip: {
     paddingHorizontal: spacing.md,
-    paddingVertical: 7,
+    height: 34,
+    justifyContent: 'center',
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: c.line,
@@ -83,5 +95,5 @@ const makeStyles = (c, t) => ({
   chipActive: { backgroundColor: c.primary, borderColor: c.primary },
   chipText: { color: c.textMuted, fontSize: 12, fontWeight: '700' },
   chipTextActive: { color: c.onPrimary },
-  list: { padding: spacing.lg, paddingBottom: spacing.xxl * 2 },
+  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl * 2 },
 });

@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, Pressable } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme, useThemedStyles, spacing, radius, shadow } from '../theme';
 import { Tag } from './common';
 import { cleanText } from '../api/dispora';
+import { PressableScale } from './anim';
 
 export function HeroCard({ item, onPress, ctaLabel }) {
   const { colors } = useTheme();
@@ -12,7 +13,7 @@ export function HeroCard({ item, onPress, ctaLabel }) {
   const excerpt = cleanText(item.excerpt);
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [s.hero, pressed && s.pressed]}>
+    <PressableScale onPress={onPress} style={s.hero} scaleTo={0.985}>
       <View style={s.heroMedia}>
         {item.bannerImage || item.image ? (
           <Image
@@ -45,7 +46,7 @@ export function HeroCard({ item, onPress, ctaLabel }) {
           <Ionicons name="arrow-forward" size={14} color={colors.onPrimary} />
         </View>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -56,7 +57,7 @@ export function ProgramCard({ item, onPress }) {
     item.accent === 'gold' ? colors.gold : item.accent === 'blue' ? colors.blue : colors.primary;
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [s.program, pressed && s.pressed]}>
+    <PressableScale onPress={onPress} style={s.program} scaleTo={0.96}>
       <View style={s.programMedia}>
         <Image source={{ uri: item.image }} style={s.programImage} resizeMode="cover" />
         <View style={[s.programStripe, { backgroundColor: accentColor }]} />
@@ -80,7 +81,7 @@ export function ProgramCard({ item, onPress }) {
           </View>
         ) : null}
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -90,10 +91,7 @@ export function EventCard({ item, onPress, wide = false }) {
   const isOpen = item.status === 'Pendaftaran dibuka';
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [s.event, wide && s.eventWide, pressed && s.pressed]}
-    >
+    <PressableScale onPress={onPress} style={[s.event, wide && s.eventWide]} scaleTo={0.97}>
       <View style={s.eventTop}>
         <Tag label={item.category} tone="gold" />
         <Tag label={item.status} tone={isOpen ? 'primary' : 'neutral'} />
@@ -111,7 +109,7 @@ export function EventCard({ item, onPress, wide = false }) {
           {item.location}
         </Text>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -120,10 +118,7 @@ export function NewsCard({ item, onPress, compact = false, readLabel }) {
   const s = useThemedStyles(makeStyles);
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [s.news, compact && s.newsCompact, pressed && s.pressed]}
-    >
+    <PressableScale onPress={onPress} style={[s.news, compact && s.newsCompact]} scaleTo={0.975}>
       <View style={s.newsAccent} />
       <View style={s.newsBody}>
         <View style={s.newsTop}>
@@ -141,7 +136,7 @@ export function NewsCard({ item, onPress, compact = false, readLabel }) {
           <Ionicons name="arrow-forward" size={13} color={colors.gold} />
         </View>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -170,12 +165,9 @@ export function FacilityCard({ item, onPress, actionLabel }) {
         </View>
         <View style={s.facilityFooter}>
           <Text style={s.facilityPrice}>{item.price}</Text>
-          <Pressable
-            onPress={onPress}
-            style={({ pressed }) => [s.bookButton, pressed && s.pressed]}
-          >
+          <PressableScale onPress={onPress} style={s.bookButton} scaleTo={0.94}>
             <Text style={s.bookButtonText}>{actionLabel}</Text>
-          </Pressable>
+          </PressableScale>
         </View>
       </View>
     </View>

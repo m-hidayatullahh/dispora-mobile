@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme, useThemedStyles, spacing, radius, shadow } from '../theme';
 import { Tag } from './common';
+import SmartImage from './SmartImage';
 import { cleanText } from '../api/dispora';
 import { PressableScale } from './anim';
 
@@ -15,13 +16,12 @@ export function HeroCard({ item, onPress, ctaLabel }) {
   return (
     <PressableScale onPress={onPress} style={s.hero} scaleTo={0.985}>
       <View style={s.heroMedia}>
-        {item.bannerImage || item.image ? (
-          <Image
-            source={{ uri: item.bannerImage || item.image }}
-            style={s.heroImage}
-            resizeMode="cover"
-          />
-        ) : null}
+        <SmartImage
+          uri={item.bannerImage || item.image}
+          style={s.heroImage}
+          icon="megaphone-outline"
+          label={item.title}
+        />
         <LinearGradient
           colors={['transparent', 'rgba(11,12,16,0.55)', 'rgba(11,12,16,0.92)']}
           style={StyleSheet.absoluteFill}
@@ -59,7 +59,12 @@ export function ProgramCard({ item, onPress }) {
   return (
     <PressableScale onPress={onPress} style={s.program} scaleTo={0.96}>
       <View style={s.programMedia}>
-        <Image source={{ uri: item.image }} style={s.programImage} resizeMode="cover" />
+        <SmartImage
+          uri={item.image}
+          style={s.programImage}
+          icon="ribbon-outline"
+          label={item.title}
+        />
         <View style={[s.programStripe, { backgroundColor: accentColor }]} />
       </View>
 
@@ -178,7 +183,12 @@ export function AthleteCard({ item }) {
   const s = useThemedStyles(makeStyles);
   return (
     <View style={s.athlete}>
-      <Image source={{ uri: item.image }} style={s.athleteImage} resizeMode="cover" />
+      <SmartImage
+        uri={item.image}
+        style={s.athleteImage}
+        icon="person-outline"
+        label={item.name}
+      />
       <LinearGradient
         colors={['transparent', 'rgba(11,12,16,0.55)', 'rgba(11,12,16,0.95)']}
         style={StyleSheet.absoluteFill}

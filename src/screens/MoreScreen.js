@@ -32,14 +32,18 @@ export default function MoreScreen({ navigation }) {
       onPress: () => navigation.navigate('Helpdesk'),
     },
     {
+      id: 'transactions',
+      icon: 'receipt-outline',
+      title: lang === 'en' ? 'My transactions' : 'Transaksi saya',
+      desc: lang === 'en' ? 'Booking & payment status' : 'Status pemesanan & pembayaran',
+      onPress: () => navigation.navigate('Transactions'),
+    },
+    {
       id: 'payment',
       icon: 'card-outline',
       title: t('more.payment'),
       desc: t('more.paymentDesc'),
-      onPress: () =>
-        navigation.navigate('Payment', {
-          order: { item: 'Sewa GOR Ciracas — 2 jam', amount: 300000, detail: 'Sabtu, 20 Sep 2026' },
-        }),
+      onPress: () => navigation.navigate('Fasilitas'),
     },
   ];
 

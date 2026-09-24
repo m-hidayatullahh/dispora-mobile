@@ -18,6 +18,7 @@ import MoreScreen from '../screens/MoreScreen';
 import ChatScreen from '../screens/ChatScreen';
 import HelpdeskScreen from '../screens/HelpdeskScreen';
 import PaymentScreen from '../screens/PaymentScreen';
+import TransactionsScreen from '../screens/TransactionsScreen';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 
@@ -128,6 +129,11 @@ export default function RootNavigator() {
           options={{ title: t('helpdesk.title') }}
         />
         <Stack.Screen name="Payment" component={PaymentScreen} options={{ title: t('pay.title') }} />
+        <Stack.Screen
+          name="Transactions"
+          component={TransactionsScreen}
+          options={{ title: t('pay.title') }}
+        />
         <Stack.Screen name="Login" component={LoginScreen} options={{ title: t('more.login') }} />
         <Stack.Screen
           name="Register"

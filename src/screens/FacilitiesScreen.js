@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, FlatList, TextInput, Pressable, ScrollView, Image } from 'react-native';
+import { View, Text, FlatList, TextInput, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import { facilityList, facilityAreas, formatRupiah } from '../data/facilities';
 import { EmptyState } from '../components/common';
 import { BrandHeader } from '../components/Logo';
 import { FadeInUp, PressableScale, stagger } from '../components/anim';
+import SmartImage from '../components/SmartImage';
 
 export default function FacilitiesScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -39,6 +40,10 @@ export default function FacilitiesScreen({ navigation }) {
       <BrandHeader size={34} subtitle={t('tab.facilities')} />
       <Text style={s.title}>{t('facilities.title')}</Text>
       <Text style={s.caption}>{t('facilities.caption')}</Text>
+      <View style={s.regionPill}>
+        <Ionicons name="location" size={12} color={colors.primary} />
+        <Text style={s.regionText}>Jakarta Barat</Text>
+      </View>
 
       <View style={s.searchBox}>
         <Ionicons name="search" size={17} color={colors.textFaint} />
@@ -90,13 +95,13 @@ export default function FacilitiesScreen({ navigation }) {
     <FadeInUp delay={stagger(index)}>
       <PressableScale onPress={() => open(item)} style={s.card}>
         <View style={s.media}>
-          {item.image ? (
-            <Image source={{ uri: item.image }} style={s.image} resizeMode="cover" />
-          ) : (
-            <View style={s.imageFallback}>
-              <Ionicons name="business-outline" size={30} color={colors.textFaint} />
-            </View>
-          )}
+          <SmartImage
+            uri={item.image}
+            style={s.image}
+            icon="business-outline"
+            label={item.name}
+            showLoader={false}
+          />
           <LinearGradient
             colors={['rgba(11,12,16,0.25)', 'transparent', 'rgba(11,12,16,0.8)']}
             style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
@@ -141,6 +146,14 @@ export default function FacilitiesScreen({ navigation }) {
               <Ionicons name="football-outline" size={13} color={colors.textFaint} />
               <Text style={s.metaText}>{item.sport}</Text>
             </View>
+            {item.rating ? (
+              <View style={s.metaItem}>
+                <Ionicons name="star" size={13} color={colors.gold} />
+                <Text style={s.metaText}>
+                  {item.rating} {lang === 'en' ? 'on Google Maps' : 'di Google Maps'}
+                </Text>
+              </View>
+            ) : null}
           </View>
 
           <View style={s.cardFooter}>
@@ -215,6 +228,18 @@ const makeStyles = (c, t) => ({
   chipTextActive: { color: c.onPrimary },
 
   resultCount: { ...t.small, fontSize: 11, marginTop: spacing.xs },
+  regionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    backgroundColor: c.primarySoft,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    marginTop: spacing.xs,
+  },
+  regionText: { color: c.primary, fontSize: 11, fontWeight: '800' },
 
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl * 2 },
 
@@ -227,13 +252,6 @@ const makeStyles = (c, t) => ({
   },
   media: { height: 168, backgroundColor: c.surfaceAlt, justifyContent: 'flex-end' },
   image: { position: 'absolute', width: '100%', height: '100%' },
-  imageFallback: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   badgeRow: {
     position: 'absolute',
     top: spacing.md,

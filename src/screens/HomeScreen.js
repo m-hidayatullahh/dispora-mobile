@@ -6,7 +6,6 @@ import {
   Pressable,
   FlatList,
   Dimensions,
-  Image,
   Linking,
   RefreshControl,
 } from 'react-native';
@@ -15,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme, useThemedStyles, spacing, radius } from '../theme';
 import { useI18n } from '../i18n/i18n';
-import { fetchHomeContent } from '../api/dispora';
+import { fetchHomeContent, linkForProgram } from '../api/dispora';
 import {
   heroQuotes as fallbackQuotes,
   programs as fallbackPrograms,
@@ -28,6 +27,8 @@ import {
 import { SectionHeading, PrimaryButton, Tag, Skeleton, Notice } from '../components/common';
 import { HeroCard, ProgramCard, EventCard, NewsCard, AthleteCard } from '../components/cards';
 import { LogoMark } from '../components/Logo';
+import SmartImage from '../components/SmartImage';
+import { facilityList } from '../data/facilities';
 import {
   FadeInUp,
   PressableScale,
@@ -116,6 +117,28 @@ export default function HomeScreen({ navigation }) {
         registrationUrl: item.registrationUrl,
       },
     });
+  };
+
+  // Tiap program unggulan punya tautan resminya sendiri.
+  const openProgram = (item) => {
+    const url = item.url || linkForProgram(item.title);
+    if (url) {
+      Linking.openURL(url).catch(() => {});
+      return;
+    }
+    if (item.content) {
+      navigation.navigate('NewsDetail', {
+        article: {
+          id: item.id,
+          category: item.tag,
+          title: item.title,
+          date: '',
+          excerpt: item.description,
+          body: item.content,
+          image: item.image,
+        },
+      });
+    }
   };
 
   const onQuoteScroll = (e) => {
@@ -229,6 +252,79 @@ export default function HomeScreen({ navigation }) {
         </>
       ) : null}
 
+      {/* Pesan cepat */}
+      <View style={s.section}>
+        <SectionHeading
+          title={lang === 'en' ? 'QUICK ' : 'PESAN '}
+          accentWord={lang === 'en' ? 'BOOKING' : 'CEPAT'}
+          caption={
+            lang === 'en'
+              ? 'Pick a venue in West Jakarta and jump straight to the schedule.'
+              : 'Pilih venue di Jakarta Barat lalu langsung ke pemilihan jadwal.'
+          }
+          actionLabel={lang === 'en' ? 'All facilities' : 'Semua fasilitas'}
+          onAction={() => navigation.navigate('Fasilitas')}
+        />
+
+        <View style={s.bookingActions}>
+          <PressableScale
+            onPress={() => navigation.navigate('Fasilitas')}
+            style={[s.bookingAction, s.bookingActionPrimary]}
+            scaleTo={0.96}
+          >
+            <Ionicons name="calendar-outline" size={18} color={colors.onPrimary} />
+            <Text style={s.bookingActionTextPrimary}>
+              {lang === 'en' ? 'Book a venue' : 'Pesan lapangan'}
+            </Text>
+          </PressableScale>
+
+          <PressableScale
+            onPress={() => navigation.navigate('Transactions')}
+            style={s.bookingAction}
+            scaleTo={0.96}
+          >
+            <Ionicons name="receipt-outline" size={18} color={colors.text} />
+            <Text style={s.bookingActionText}>
+              {lang === 'en' ? 'Check status' : 'Cek transaksi'}
+            </Text>
+          </PressableScale>
+        </View>
+
+        <FlatList
+          horizontal
+          data={facilityList.filter((f) => f.ebooking).slice(0, 5)}
+          keyExtractor={(item) => String(item.id)}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.hList}
+          ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
+          renderItem={({ item, index }) => (
+            <FadeInUp delay={stagger(index, 60, 240)}>
+              <PressableScale
+                onPress={() => navigation.navigate('FacilityDetail', { facilityId: item.id })}
+                style={s.bookCard}
+                scaleTo={0.96}
+              >
+                <View style={s.bookIcon}>
+                  <Ionicons name="business" size={18} color={colors.primary} />
+                </View>
+                <Text style={s.bookName} numberOfLines={2}>
+                  {item.name}
+                </Text>
+                <Text style={s.bookArea}>{item.area}</Text>
+                <View style={s.bookMeta}>
+                  <Ionicons name="time-outline" size={11} color={colors.textFaint} />
+                  <Text style={s.bookMetaText}>{item.operationalHours}</Text>
+                </View>
+                <Text style={s.bookPrice}>
+                  {lang === 'en' ? 'From' : 'Mulai'} Rp{' '}
+                  {item.priceFrom.toLocaleString('id-ID')}
+                </Text>
+              </PressableScale>
+            </FadeInUp>
+          )}
+        />
+      </View>
+
       {/* Program unggulan */}
       <View style={s.section}>
         <SectionHeading
@@ -249,24 +345,7 @@ export default function HomeScreen({ navigation }) {
             contentContainerStyle={s.hList}
             ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
             renderItem={({ item }) => (
-              <ProgramCard
-                item={item}
-                onPress={() =>
-                  item.content
-                    ? navigation.navigate('NewsDetail', {
-                        article: {
-                          id: item.id,
-                          category: item.tag,
-                          title: item.title,
-                          date: '',
-                          excerpt: item.description,
-                          body: item.content,
-                          image: item.image,
-                        },
-                      })
-                    : null
-                }
-              />
+              <ProgramCard item={item} onPress={() => openProgram(item)} />
             )}
           />
         )}
@@ -368,7 +447,7 @@ export default function HomeScreen({ navigation }) {
                 style={s.galleryItem}
                 scaleTo={0.94}
               >
-                <Image source={{ uri: item.image }} style={s.galleryImage} resizeMode="cover" />
+                <SmartImage uri={item.image} style={s.galleryImage} icon="images-outline" />
               </PressableScale>
             )}
           />
@@ -410,13 +489,12 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => (item.link ? Linking.openURL(item.link).catch(() => {}) : null)}
                 style={s.socialCard}
               >
-                {item.image ? (
-                  <Image source={{ uri: item.image }} style={s.socialImage} resizeMode="cover" />
-                ) : (
-                  <View style={[s.socialImage, s.socialImageEmpty]}>
-                    <Ionicons name="logo-instagram" size={28} color={colors.textFaint} />
-                  </View>
-                )}
+                <SmartImage
+                  uri={item.image}
+                  style={s.socialImage}
+                  icon="logo-instagram"
+                  label={item.handle}
+                />
                 <View style={s.socialBody}>
                   <Text style={s.socialHandle}>{item.handle}</Text>
                   <Text style={s.socialText} numberOfLines={3}>
@@ -512,6 +590,52 @@ const makeStyles = (c, t) => ({
   dotActive: { width: 18, backgroundColor: c.primary },
 
   section: { marginTop: spacing.xxl },
+
+  bookingActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  bookingAction: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingVertical: 13,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: c.line,
+    backgroundColor: c.surface,
+  },
+  bookingActionPrimary: { backgroundColor: c.primary, borderColor: c.primary },
+  bookingActionText: { color: c.text, fontSize: 13, fontWeight: '800' },
+  bookingActionTextPrimary: { color: c.onPrimary, fontSize: 13, fontWeight: '800' },
+
+  bookCard: {
+    width: 176,
+    backgroundColor: c.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: c.line,
+    padding: spacing.lg,
+    gap: 5,
+  },
+  bookIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
+    backgroundColor: c.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
+  },
+  bookName: { ...t.subtitle, fontSize: 13, lineHeight: 18 },
+  bookArea: { ...t.small, fontSize: 11 },
+  bookMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+  bookMetaText: { ...t.small, fontSize: 10 },
+  bookPrice: { color: c.gold, fontSize: 12, fontWeight: '900', marginTop: spacing.xs },
   hList: { paddingHorizontal: spacing.lg },
 
   helpdesk: {

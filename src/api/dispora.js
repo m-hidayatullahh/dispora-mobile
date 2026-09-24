@@ -94,6 +94,28 @@ const pick = (obj, ...keys) => {
 
 const ACCENTS = ['primary', 'blue', 'gold'];
 
+// Tautan resmi tiap program unggulan.
+const PROGRAM_LINKS = [
+  ['jkt sport', 'https://ppop-dispora.jakarta.go.id/'],
+  ['jktsport', 'https://ppop-dispora.jakarta.go.id/'],
+  ['ppop', 'https://ppop-dispora.jakarta.go.id/'],
+  ['sidasi', 'https://sidasi-dispora.jakarta.go.id/'],
+  ['rekomtek', 'https://dispora.jakarta.go.id/rekomtek'],
+  ['e-booking', 'https://dispora.jakarta.go.id/facilities'],
+  ['ebooking', 'https://dispora.jakarta.go.id/facilities'],
+  ['booking', 'https://dispora.jakarta.go.id/facilities'],
+  ['jkt muda', 'https://dispora.jakarta.go.id/jktmuda'],
+  ['jktmuda', 'https://dispora.jakarta.go.id/jktmuda'],
+];
+
+export function linkForProgram(title) {
+  const key = String(title || '').toLowerCase();
+  for (const [needle, url] of PROGRAM_LINKS) {
+    if (key.includes(needle)) return url;
+  }
+  return null;
+}
+
 export function normalizeProgram(p, i = 0) {
   return {
     id: String(p.id ?? p.slug ?? i),
@@ -103,7 +125,7 @@ export function normalizeProgram(p, i = 0) {
     image: pick(p, 'image', 'bannerImage', 'thumbnail', 'cover', 'imageUrl'),
     tag: p.type || p.category || 'Program',
     accent: ACCENTS[i % ACCENTS.length],
-    url: pick(p, 'url', 'link', 'externalUrl'),
+    url: pick(p, 'url', 'link', 'externalUrl') || linkForProgram(p.title || p.name),
     children: [],
   };
 }
@@ -265,6 +287,7 @@ export async function fetchHomeContent() {
 
 export default {
   BASE_URL,
+  linkForProgram,
   ENDPOINTS,
   fetchHero,
   fetchPrograms,
